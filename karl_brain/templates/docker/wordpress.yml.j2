@@ -1,0 +1,40 @@
+version: "3.8"
+services:
+  db-{{ name }}:
+    image: mysql:8.0
+    container_name: {{ name }}-db
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: {{ env_vars.get('MYSQL_ROOT_PASSWORD', 'rootpassword') }}
+      MYSQL_DATABASE: {{ env_vars.get('MYSQL_DATABASE', 'wordpress') }}
+      MYSQL_USER: {{ env_vars.get('MYSQL_USER', 'wordpress') }}
+      MYSQL_PASSWORD: {{ env_vars.get('MYSQL_PASSWORD', 'wordpress') }}
+    volumes:
+      - {{ name }}-db-data:/var/lib/mysql
+    networks:
+      - {{ name }}-net
+
+  {{ name }}:
+    image: wordpress:latest
+    container_name: {{ name }}
+    restart: always
+    ports:
+      - "{{ port }}:80"
+    environment:
+      WORDPRESS_DB_HOST: db-{{ name }}
+      WORDPRESS_DB_USER: {{ env_vars.get('MYSQL_USER', 'wordpress') }}
+      WORDPRESS_DB_PASSWORD: {{ env_vars.get('MYSQL_PASSWORD', 'wordpress') }}
+      WORDPRESS_DB_NAME: {{ env_vars.get('MYSQL_DATABASE', 'wordpress') }}
+    volumes:
+      - {{ name }}-wp-data:/var/www/html
+    depends_on:
+      - db-{{ name }}
+    networks:
+      - {{ name }}-net
+
+volumes:
+  {{ name }}-db-data:
+  {{ name }}-wp-data:
+
+networks:
+  {{ name }}-net:

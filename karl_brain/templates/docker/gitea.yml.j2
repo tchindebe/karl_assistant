@@ -1,0 +1,45 @@
+version: "3.8"
+services:
+  {{ name }}:
+    image: gitea/gitea:latest
+    container_name: {{ name }}
+    restart: always
+    ports:
+      - "{{ port }}:3000"
+      - "{{ env_vars.get('SSH_PORT', '2222') }}:22"
+    environment:
+      USER_UID: 1000
+      USER_GID: 1000
+      GITEA__database__DB_TYPE: postgres
+      GITEA__database__HOST: {{ name }}-db:5432
+      GITEA__database__NAME: gitea
+      GITEA__database__USER: gitea
+      GITEA__database__PASSWD: {{ env_vars.get('DB_PASSWORD', 'giteapassword') }}
+      GITEA__server__DOMAIN: {{ domain if domain else 'localhost' }}
+      GITEA__server__ROOT_URL: https://{{ domain if domain else 'localhost' }}/
+    volumes:
+      - {{ name }}-data:/data
+    depends_on:
+      - {{ name }}-db
+    networks:
+      - {{ name }}-net
+
+  {{ name }}-db:
+    image: postgres:15-alpine
+    container_name: {{ name }}-db
+    restart: always
+    environment:
+      POSTGRES_DB: gitea
+      POSTGRES_USER: gitea
+      POSTGRES_PASSWORD: {{ env_vars.get('DB_PASSWORD', 'giteapassword') }}
+    volumes:
+      - {{ name }}-db-data:/var/lib/postgresql/data
+    networks:
+      - {{ name }}-net
+
+volumes:
+  {{ name }}-data:
+  {{ name }}-db-data:
+
+networks:
+  {{ name }}-net:

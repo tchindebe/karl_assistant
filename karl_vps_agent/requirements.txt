@@ -1,0 +1,15 @@
+fastapi==0.115.0
+uvicorn[standard]==0.30.6
+psutil==6.0.0
+python-dotenv==1.0.1
+jinja2==3.1.4
+pydantic==2.8.2
+
+# ─── Dépendances système (installées via install.sh) ───────────────────────
+# git          — pour deploy_from_git (CI/CD)
+# certbot      — pour ssl_manager
+# nginx        — reverse proxy
+# ufw          — firewall
+# docker + docker-compose — conteneurs
+# nmap         — scan de ports (security_auditor)
+# clamav       — scan antivirus (security_auditor)

@@ -1,0 +1,51 @@
+version: "3.8"
+services:
+  {{ name }}-db:
+    image: postgres:15-alpine
+    container_name: {{ name }}-db
+    restart: always
+    environment:
+      POSTGRES_DB: nextcloud
+      POSTGRES_USER: nextcloud
+      POSTGRES_PASSWORD: {{ env_vars.get('DB_PASSWORD', 'nextcloudpassword') }}
+    volumes:
+      - {{ name }}-db-data:/var/lib/postgresql/data
+    networks:
+      - {{ name }}-net
+
+  {{ name }}-redis:
+    image: redis:7-alpine
+    container_name: {{ name }}-redis
+    restart: always
+    networks:
+      - {{ name }}-net
+
+  {{ name }}:
+    image: nextcloud:27-apache
+    container_name: {{ name }}
+    restart: always
+    ports:
+      - "{{ port }}:80"
+    environment:
+      POSTGRES_HOST: {{ name }}-db
+      POSTGRES_DB: nextcloud
+      POSTGRES_USER: nextcloud
+      POSTGRES_PASSWORD: {{ env_vars.get('DB_PASSWORD', 'nextcloudpassword') }}
+      REDIS_HOST: {{ name }}-redis
+      NEXTCLOUD_ADMIN_USER: {{ env_vars.get('ADMIN_USER', 'admin') }}
+      NEXTCLOUD_ADMIN_PASSWORD: {{ env_vars.get('ADMIN_PASSWORD', 'adminpassword') }}
+      NEXTCLOUD_TRUSTED_DOMAINS: {{ domain if domain else 'localhost' }}
+    volumes:
+      - {{ name }}-data:/var/www/html
+    depends_on:
+      - {{ name }}-db
+      - {{ name }}-redis
+    networks:
+      - {{ name }}-net
+
+volumes:
+  {{ name }}-db-data:
+  {{ name }}-data:
+
+networks:
+  {{ name }}-net:

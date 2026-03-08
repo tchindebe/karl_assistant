@@ -1,0 +1,21 @@
+version: "3.8"
+services:
+  {{ name }}:
+    image: {{ image or "python:3.12-slim" }}
+    container_name: {{ name }}
+    restart: unless-stopped
+    working_dir: /app
+    ports:
+      - "{{ port or 8000 }}:{{ port or 8000 }}"
+    volumes:
+      - ./app:/app
+    command: ["python", "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "{{ port or 8000 }}"]
+    {% if env_vars %}
+    environment:
+      {% for k, v in env_vars.items() %}
+      - {{ k }}={{ v }}
+      {% endfor %}
+    {% endif %}
+    labels:
+      - "karl.app={{ name }}"
+      - "karl.stack=python"

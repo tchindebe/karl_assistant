@@ -1,0 +1,47 @@
+version: "3.8"
+services:
+  {{ name }}:
+    image: n8nio/n8n:latest
+    container_name: {{ name }}
+    restart: always
+    ports:
+      - "{{ port }}:5678"
+    environment:
+      N8N_BASIC_AUTH_ACTIVE: "true"
+      N8N_BASIC_AUTH_USER: {{ env_vars.get('N8N_USER', 'admin') }}
+      N8N_BASIC_AUTH_PASSWORD: {{ env_vars.get('N8N_PASSWORD', 'password') }}
+      N8N_HOST: {{ domain if domain else 'localhost' }}
+      N8N_PROTOCOL: https
+      WEBHOOK_URL: https://{{ domain if domain else 'localhost' }}/
+      GENERIC_TIMEZONE: {{ env_vars.get('TIMEZONE', 'America/Toronto') }}
+      DB_TYPE: postgresdb
+      DB_POSTGRESDB_HOST: {{ name }}-db
+      DB_POSTGRESDB_DATABASE: n8n
+      DB_POSTGRESDB_USER: n8n
+      DB_POSTGRESDB_PASSWORD: {{ env_vars.get('DB_PASSWORD', 'n8npassword') }}
+    volumes:
+      - {{ name }}-data:/home/node/.n8n
+    depends_on:
+      - {{ name }}-db
+    networks:
+      - {{ name }}-net
+
+  {{ name }}-db:
+    image: postgres:15-alpine
+    container_name: {{ name }}-db
+    restart: always
+    environment:
+      POSTGRES_DB: n8n
+      POSTGRES_USER: n8n
+      POSTGRES_PASSWORD: {{ env_vars.get('DB_PASSWORD', 'n8npassword') }}
+    volumes:
+      - {{ name }}-db-data:/var/lib/postgresql/data
+    networks:
+      - {{ name }}-net
+
+volumes:
+  {{ name }}-data:
+  {{ name }}-db-data:
+
+networks:
+  {{ name }}-net:

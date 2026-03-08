@@ -1,0 +1,47 @@
+version: "3.8"
+services:
+  {{ name }}:
+    image: ghost:5-alpine
+    container_name: {{ name }}
+    restart: always
+    ports:
+      - "{{ port }}:2368"
+    environment:
+      url: https://{{ domain if domain else 'localhost' }}
+      database__client: mysql
+      database__connection__host: {{ name }}-db
+      database__connection__user: ghost
+      database__connection__password: {{ env_vars.get('DB_PASSWORD', 'ghostpassword') }}
+      database__connection__database: ghost
+      mail__transport: SMTP
+      mail__options__host: {{ env_vars.get('SMTP_HOST', '') }}
+      mail__options__port: {{ env_vars.get('SMTP_PORT', '587') }}
+      mail__options__auth__user: {{ env_vars.get('SMTP_USER', '') }}
+      mail__options__auth__pass: {{ env_vars.get('SMTP_PASS', '') }}
+    volumes:
+      - {{ name }}-content:/var/lib/ghost/content
+    depends_on:
+      - {{ name }}-db
+    networks:
+      - {{ name }}-net
+
+  {{ name }}-db:
+    image: mysql:8.0
+    container_name: {{ name }}-db
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: {{ env_vars.get('DB_ROOT_PASSWORD', 'rootpassword') }}
+      MYSQL_USER: ghost
+      MYSQL_PASSWORD: {{ env_vars.get('DB_PASSWORD', 'ghostpassword') }}
+      MYSQL_DATABASE: ghost
+    volumes:
+      - {{ name }}-db-data:/var/lib/mysql
+    networks:
+      - {{ name }}-net
+
+volumes:
+  {{ name }}-content:
+  {{ name }}-db-data:
+
+networks:
+  {{ name }}-net:

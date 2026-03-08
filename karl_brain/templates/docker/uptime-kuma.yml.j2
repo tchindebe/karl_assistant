@@ -1,0 +1,15 @@
+version: "3.8"
+services:
+  {{ name }}:
+    image: louislam/uptime-kuma:1
+    container_name: {{ name }}
+    restart: always
+    ports:
+      - "{{ port }}:3001"
+    volumes:
+      - {{ name }}-data:/app/data
+    security_opt:
+      - no-new-privileges:true
+
+volumes:
+  {{ name }}-data:
