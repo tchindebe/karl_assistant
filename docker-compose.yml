@@ -1,0 +1,97 @@
+services:
+
+  # ── Karl Brain (AI orchestrator) ────────────────────────────────────────────
+  karl-brain:
+    build:
+      context: ./karl_brain
+      dockerfile: Dockerfile
+    container_name: karl-brain
+    restart: unless-stopped
+    ports:
+      - "${APP_PORT:-8000}:8000"
+    environment:
+      - PROVIDER=${PROVIDER:-anthropic}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - CLAUDE_MODEL=${CLAUDE_MODEL:-claude-opus-4-6}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - OPENAI_MODEL=${OPENAI_MODEL:-gpt-4o}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - VPS_AGENT_URL=http://karl-vps-agent:8001
+      - VPS_AGENT_API_KEY=${VPS_AGENT_API_KEY}
+      - KARL_ADMIN_PASSWORD=${KARL_ADMIN_PASSWORD}
+      - JWT_SECRET=${JWT_SECRET}
+      - DATABASE_URL=sqlite+aiosqlite:///./karl.db
+      - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:3000,http://localhost:80}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-}
+      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID:-}
+      - ODOO_URL=${ODOO_URL:-}
+      - ODOO_DB=${ODOO_DB:-}
+      - ODOO_USERNAME=${ODOO_USERNAME:-}
+      - ODOO_API_KEY=${ODOO_API_KEY:-}
+      - GA4_PROPERTY_ID=${GA4_PROPERTY_ID:-}
+      - CLOUDFLARE_API_TOKEN=${CLOUDFLARE_API_TOKEN:-}
+      - CLOUDFLARE_ZONE_ID=${CLOUDFLARE_ZONE_ID:-}
+      - DEBUG=${DEBUG:-false}
+    volumes:
+      - karl-brain-data:/app
+    networks:
+      - karl-net
+    depends_on:
+      karl-vps-agent:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+  # ── Karl VPS Agent (system daemon) ──────────────────────────────────────────
+  karl-vps-agent:
+    build:
+      context: ./karl_vps_agent
+      dockerfile: Dockerfile
+    container_name: karl-vps-agent
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8001:8001"   # only accessible from localhost / brain
+    environment:
+      - KARL_AGENT_API_KEY=${VPS_AGENT_API_KEY}
+      - APPS_BASE_DIR=${APPS_BASE_DIR:-/opt/karl/deployments}
+      - NGINX_SITES_DIR=${NGINX_SITES_DIR:-/etc/nginx/sites-enabled}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock   # docker access
+      - /opt/karl:/opt/karl                          # deployment dirs
+      - /etc/nginx:/etc/nginx                        # nginx config
+      - /etc/letsencrypt:/etc/letsencrypt            # SSL certs
+      - karl-backups:/backups                        # DB backups
+    networks:
+      - karl-net
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
+  # ── Frontend ─────────────────────────────────────────────────────────────────
+  karl-frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: karl-frontend
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_PORT:-3000}:80"
+    networks:
+      - karl-net
+    depends_on:
+      - karl-brain
+
+volumes:
+  karl-brain-data:
+  karl-backups:
+
+networks:
+  karl-net:
+    driver: bridge

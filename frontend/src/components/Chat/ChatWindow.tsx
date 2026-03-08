@@ -1,22 +1,39 @@
 import { useEffect, useRef } from "react";
 import { Trash2 } from "lucide-react";
-import { useChat } from "../../hooks/useChat";
+import type { useChat } from "../../hooks/useChat";
 import MessageBubble from "./MessageBubble";
 import InputBar from "./InputBar";
 
 interface Props {
-  token: string;
+  chat: ReturnType<typeof useChat>;
 }
 
 const SUGGESTIONS = [
+  // Monitoring
   "Montre-moi les métriques du serveur",
+  "Analyse les logs d'erreur des dernières 24h",
+  // Déploiement
   "Liste toutes les applications déployées",
-  "Déploie une app Node.js nommée 'test-api' sur le port 3000",
+  "Déploie une app Node.js nommée 'mon-api' sur le port 3000",
+  // Sécurité
+  "Lance un audit de sécurité complet",
+  "Montre-moi le statut du firewall",
+  // Base de données
+  "Sauvegarde toutes les bases de données",
+  "Liste les bases de données PostgreSQL",
+  // SSL & DNS
+  "Vérifie l'expiration de mes certificats SSL",
+  "Configure le DNS pour mon-domaine.com",
+  // Auto-healing & Optimisation
+  "Active l'auto-healing sur tous les services",
+  "Optimise les performances du serveur",
+  // CRM & Analytics
   "Quels sont mes derniers prospects CRM ?",
+  "Montre-moi les analytics de la semaine",
 ];
 
-export default function ChatWindow({ token }: Props) {
-  const { messages, isLoading, error, sendMessage, clearChat } = useChat(token);
+export default function ChatWindow({ chat }: Props) {
+  const { messages, isLoading, error, sendMessage, clearChat } = chat;
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -76,7 +93,7 @@ export default function ChatWindow({ token }: Props) {
             </div>
 
             {/* Suggestions */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full max-w-lg">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full max-w-2xl">
               {SUGGESTIONS.map((s) => (
                 <button
                   key={s}

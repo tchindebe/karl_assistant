@@ -1,45 +1,68 @@
 import { useState } from "react";
-import { Terminal, LayoutDashboard, LogOut, MessageSquare } from "lucide-react";
+import {
+  Terminal, LayoutDashboard, LogOut, MessageSquare,
+  Shield, Globe, Database, Archive, Package,
+} from "lucide-react";
+import { useChat } from "../hooks/useChat";
 import ChatWindow from "./Chat/ChatWindow";
 import Dashboard from "./Dashboard/Dashboard";
+import SecurityPanel from "./Dashboard/SecurityPanel";
+import SSLPanel from "./Dashboard/SSLPanel";
+import DatabasePanel from "./Dashboard/DatabasePanel";
+import BackupsPanel from "./Dashboard/BackupsPanel";
+import AppStore from "./Dashboard/AppStore";
 
 interface Props {
   token: string;
   onLogout: () => void;
 }
 
-type Tab = "chat" | "dashboard";
+type Tab = "chat" | "overview" | "security" | "ssl" | "databases" | "backups" | "appstore";
+
+const NAV: { id: Tab; icon: React.ReactNode; label: string }[] = [
+  { id: "chat",     icon: <MessageSquare size={20} />,   label: "Chat" },
+  { id: "overview", icon: <LayoutDashboard size={20} />, label: "Aperçu" },
+  { id: "security", icon: <Shield size={20} />,          label: "Sécurité" },
+  { id: "ssl",      icon: <Globe size={20} />,           label: "SSL & DNS" },
+  { id: "databases",icon: <Database size={20} />,        label: "Bases de données" },
+  { id: "backups",  icon: <Archive size={20} />,         label: "Sauvegardes" },
+  { id: "appstore", icon: <Package size={20} />,         label: "App Store" },
+];
 
 export default function Layout({ token, onLogout }: Props) {
   const [tab, setTab] = useState<Tab>("chat");
+  const chat = useChat(token);
+
+  /** Switch to Chat and send (or pre-fill) a message */
+  const handleAction = (msg: string) => {
+    setTab("chat");
+    chat.sendMessage(msg);
+  };
 
   return (
     <div className="flex h-screen overflow-hidden" style={{ background: "var(--bg)" }}>
       {/* ── Sidebar ─────────────────────────────────────────────────────────── */}
       <aside
-        className="flex flex-col w-16 shrink-0 py-4 items-center gap-4"
+        className="flex flex-col w-16 shrink-0 py-4 items-center gap-1"
         style={{ background: "var(--surface)", borderRight: "1px solid var(--border)" }}
       >
         {/* Logo */}
-        <div className="p-2 rounded-xl mb-2" style={{ background: "var(--accent)" }}>
+        <div className="p-2 rounded-xl mb-3" style={{ background: "var(--accent)" }}>
           <Terminal size={20} color="white" />
         </div>
 
-        {/* Nav */}
-        <NavBtn
-          icon={<MessageSquare size={20} />}
-          label="Chat"
-          active={tab === "chat"}
-          onClick={() => setTab("chat")}
-        />
-        <NavBtn
-          icon={<LayoutDashboard size={20} />}
-          label="Dashboard"
-          active={tab === "dashboard"}
-          onClick={() => setTab("dashboard")}
-        />
+        {/* Nav items */}
+        {NAV.map(({ id, icon, label }) => (
+          <NavBtn
+            key={id}
+            icon={icon}
+            label={label}
+            active={tab === id}
+            onClick={() => setTab(id)}
+          />
+        ))}
 
-        {/* Logout en bas */}
+        {/* Logout */}
         <div className="mt-auto">
           <button
             onClick={onLogout}
@@ -60,20 +83,22 @@ export default function Layout({ token, onLogout }: Props) {
         </div>
       </aside>
 
-      {/* ── Contenu principal ───────────────────────────────────────────────── */}
+      {/* ── Main content ────────────────────────────────────────────────────── */}
       <main className="flex-1 overflow-hidden flex flex-col">
-        {tab === "chat" && <ChatWindow token={token} />}
-        {tab === "dashboard" && <Dashboard token={token} />}
+        {tab === "chat"      && <ChatWindow chat={chat} />}
+        {tab === "overview"  && <Dashboard token={token} onAction={handleAction} />}
+        {tab === "security"  && <SecurityPanel token={token} onAction={handleAction} />}
+        {tab === "ssl"       && <SSLPanel token={token} onAction={handleAction} />}
+        {tab === "databases" && <DatabasePanel token={token} onAction={handleAction} />}
+        {tab === "backups"   && <BackupsPanel token={token} onAction={handleAction} />}
+        {tab === "appstore"  && <AppStore token={token} onAction={handleAction} />}
       </main>
     </div>
   );
 }
 
 function NavBtn({
-  icon,
-  label,
-  active,
-  onClick,
+  icon, label, active, onClick,
 }: {
   icon: React.ReactNode;
   label: string;

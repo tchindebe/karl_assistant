@@ -1,4 +1,4 @@
-import { Package, Circle } from "lucide-react";
+import { Package, Circle, Settings } from "lucide-react";
 
 interface Deployment {
   name: string;
@@ -9,6 +9,7 @@ interface Deployment {
 interface Props {
   deployments: Deployment[];
   loading: boolean;
+  onAction: (msg: string) => void;
 }
 
 function statusColor(psOutput: string): string {
@@ -24,7 +25,7 @@ function statusLabel(psOutput: string): string {
   return "Running";
 }
 
-export default function DeploymentList({ deployments, loading }: Props) {
+export default function DeploymentList({ deployments, loading, onAction }: Props) {
   return (
     <div className="space-y-4">
       <h3 className="font-semibold text-white">Applications déployées</h3>
@@ -66,9 +67,24 @@ export default function DeploymentList({ deployments, loading }: Props) {
                     </p>
                   </div>
                 </div>
-                <div className="flex items-center gap-2 text-sm">
-                  <Circle size={8} fill={color} color={color} />
-                  <span style={{ color }}>{label}</span>
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2 text-sm">
+                    <Circle size={8} fill={color} color={color} />
+                    <span style={{ color }}>{label}</span>
+                  </div>
+                  <button
+                    onClick={() => onAction(`Montre-moi le statut et les logs de l'application ${dep.name}.`)}
+                    title="Gérer dans le chat"
+                    style={{
+                      padding: "4px 10px", fontSize: 12, cursor: "pointer",
+                      background: "var(--surface2)", border: "1px solid var(--border)",
+                      borderRadius: 6, color: "var(--text-muted)",
+                      display: "flex", alignItems: "center", gap: 4,
+                    }}
+                  >
+                    <Settings size={12} />
+                    Gérer
+                  </button>
                 </div>
               </div>
             );

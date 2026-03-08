@@ -6,9 +6,10 @@ import { RefreshCw } from "lucide-react";
 
 interface Props {
   token: string;
+  onAction: (msg: string) => void;
 }
 
-export default function Dashboard({ token }: Props) {
+export default function Dashboard({ token, onAction }: Props) {
   const [metrics, setMetrics] = useState<any>(null);
   const [deployments, setDeployments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -77,7 +78,7 @@ export default function Dashboard({ token }: Props) {
           </div>
         )}
 
-        <DeploymentList deployments={deployments} loading={loading} />
+        <DeploymentList deployments={deployments} loading={loading} onAction={onAction} />
       </div>
     </div>
   );

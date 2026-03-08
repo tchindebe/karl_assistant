@@ -20,12 +20,35 @@ from api.auth import router as auth_router
 from api.chat import router as chat_router
 from api.metrics import router as metrics_router
 from api.deployments import router as deployments_router
+from api.dashboard import router as dashboard_router
 
 settings = get_settings()
 
 
+def _validate_settings() -> None:
+    """Fail fast if required env vars are missing."""
+    errors = []
+    if not settings.vps_agent_api_key:
+        errors.append("VPS_AGENT_API_KEY is not set")
+    if not settings.karl_admin_password:
+        errors.append("KARL_ADMIN_PASSWORD is not set")
+    if not settings.jwt_secret:
+        errors.append("JWT_SECRET is not set")
+    if settings.provider == "anthropic" and not settings.anthropic_api_key:
+        errors.append("ANTHROPIC_API_KEY is not set (required when PROVIDER=anthropic)")
+    if settings.provider == "openai" and not settings.openai_api_key:
+        errors.append("OPENAI_API_KEY is not set (required when PROVIDER=openai)")
+    if settings.provider == "gemini" and not settings.gemini_api_key:
+        errors.append("GEMINI_API_KEY is not set (required when PROVIDER=gemini)")
+    if errors:
+        for e in errors:
+            print(f"[FATAL] {e}", flush=True)
+        raise SystemExit(1)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    _validate_settings()
     # Initialiser la DB au démarrage
     await init_db()
     print(f"Karl Brain démarré — Modèle: {settings.claude_model}")
@@ -55,6 +78,7 @@ app.include_router(auth_router)
 app.include_router(chat_router)
 app.include_router(metrics_router)
 app.include_router(deployments_router)
+app.include_router(dashboard_router)
 
 
 @app.get("/health")
