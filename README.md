@@ -399,7 +399,7 @@ Internet
 ssh root@VOTRE_IP_VPS
 
 apt update && apt upgrade -y
-apt install -y python3.11 python3.11-venv python3-pip \
+apt install -y python3.12 python3.12-venv python3-pip \
                nginx certbot python3-certbot-nginx \
                git curl wget ufw
 
@@ -423,7 +423,7 @@ ufw enable
 git clone <repo-url> /opt/karl
 cd /opt/karl/karl_vps_agent
 
-python3.11 -m venv venv
+python3.12 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
 
@@ -449,7 +449,7 @@ curl http://localhost:8001/health
 ```bash
 cd /opt/karl/karl_brain
 
-python3.11 -m venv venv
+python3.12 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
 
