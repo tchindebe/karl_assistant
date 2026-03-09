@@ -2,7 +2,6 @@
 Provider Google Gemini — via google-generativeai SDK.
 Modèles: gemini-2.0-flash, gemini-1.5-pro, gemini-1.5-flash, etc.
 """
-import json
 from typing import List, Dict, Any, Optional, Callable, Awaitable
 
 try:
@@ -15,19 +14,23 @@ except ImportError:
 from ai.providers.base import LLMProvider, ProviderResult, ToolCall
 
 
+_GEMINI_UNSUPPORTED = {
+    "additionalProperties", "default", "exclusiveMinimum", "exclusiveMaximum",
+    "$schema", "$id", "$ref", "if", "then", "else", "not", "contentMediaType",
+}
+
+
 def _strip_unsupported_schema_fields(schema: Any) -> Any:
-    """Supprime récursivement les champs non supportés par Gemini (additionalProperties, etc.)."""
+    """Supprime récursivement TOUS les champs non supportés par Gemini."""
+    if isinstance(schema, list):
+        return [_strip_unsupported_schema_fields(item) for item in schema]
     if not isinstance(schema, dict):
         return schema
-    unsupported = {"additionalProperties", "exclusiveMinimum", "exclusiveMaximum", "$schema", "default"}
-    cleaned = {k: v for k, v in schema.items() if k not in unsupported}
-    if "properties" in cleaned and isinstance(cleaned["properties"], dict):
-        cleaned["properties"] = {
-            k: _strip_unsupported_schema_fields(v)
-            for k, v in cleaned["properties"].items()
-        }
-    if "items" in cleaned:
-        cleaned["items"] = _strip_unsupported_schema_fields(cleaned["items"])
+    cleaned = {}
+    for k, v in schema.items():
+        if k in _GEMINI_UNSUPPORTED:
+            continue
+        cleaned[k] = _strip_unsupported_schema_fields(v)
     return cleaned
 
 
@@ -145,7 +148,7 @@ class GeminiProvider(LLMProvider):
         tools: List[Dict[str, Any]],
         system: str,
         on_text: Optional[Callable[[str], Awaitable[None]]] = None,
-        on_thinking: Optional[Callable[[str], Awaitable[None]]] = None,
+        on_thinking: Optional[Callable[[str], Awaitable[None]]] = None,  # noqa: unused — Gemini n'a pas de thinking blocks
     ) -> ProviderResult:
         import asyncio
 
