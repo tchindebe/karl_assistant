@@ -30,7 +30,7 @@ async def ssl_status(_: str = Depends(get_current_user)):
 @router.get("/security/status")
 async def security_status(_: str = Depends(get_current_user)):
     """Résumé de l'audit de sécurité (SSH, ports, mises à jour, Docker)."""
-    return await _vps_get("/security")
+    return await _vps_get("/security/audit")
 
 
 @router.get("/firewall")
@@ -42,13 +42,26 @@ async def firewall_status(_: str = Depends(get_current_user)):
 @router.get("/backups")
 async def backups_list(_: str = Depends(get_current_user)):
     """Liste des sauvegardes disponibles (volumes, BDD, configs)."""
-    return await _vps_get("/backups/list")
+    return await _vps_get("/backups")
 
 
 @router.get("/apps/available")
 async def apps_available(_: str = Depends(get_current_user)):
     """Catalogue d'applications disponibles dans l'App Store."""
-    return await _vps_get("/apps/list")
+    # Pas de route dédiée sur le VPS Agent — retourne un catalogue statique
+    return {
+        "success": True,
+        "apps": [
+            {"id": "wordpress",  "name": "WordPress",   "stack": "php",    "description": "CMS populaire"},
+            {"id": "nextjs",     "name": "Next.js",     "stack": "nodejs", "description": "Framework React"},
+            {"id": "django",     "name": "Django",      "stack": "python", "description": "Framework Python"},
+            {"id": "fastapi",    "name": "FastAPI",     "stack": "python", "description": "API Python rapide"},
+            {"id": "nginx",      "name": "Nginx Static","stack": "static", "description": "Site statique"},
+            {"id": "ghost",      "name": "Ghost",       "stack": "nodejs", "description": "Blog professionnel"},
+            {"id": "n8n",        "name": "n8n",         "stack": "nodejs", "description": "Automatisation workflows"},
+            {"id": "metabase",   "name": "Metabase",    "stack": "static", "description": "Analytics & BI"},
+        ],
+    }
 
 
 @router.get("/containers")

@@ -646,6 +646,34 @@ curl -s https://karl.mondomaine.com/api/health | python3 -m json.tool
 | `APPS_BASE_DIR` | `/opt/karl/deployments` | Répertoire des applications |
 | `NGINX_SITES_DIR` | `/etc/nginx/sites-enabled` | Sites Nginx actifs |
 
+### Frontend (`frontend/.env`)
+
+Le frontend n'a qu'**une seule variable** optionnelle :
+
+| Variable | Valeur | Quand l'utiliser |
+|---|---|---|
+| `VITE_API_URL` | *(vide)* | **Production** : frontend servi par FastAPI sur le même domaine — laisser vide (URLs relatives) |
+| `VITE_API_URL` | `http://localhost:8000` | **Développement local** : frontend sur port 5173, API sur port 8000 |
+| `VITE_API_URL` | `https://karl.mondomaine.com` | **Production domaine différent** : API et frontend sur des domaines distincts |
+
+**Cas typiques :**
+
+```bash
+# Production — FastAPI sert frontend/dist/ sur le même domaine (cas recommandé)
+# frontend/.env est inutile, ou :
+echo "VITE_API_URL=" > frontend/.env
+
+# Développement local — deux serveurs séparés
+echo "VITE_API_URL=http://localhost:8000" > frontend/.env
+
+# Puis builder :
+cd frontend && npm run build
+```
+
+> **Note** : En production sur VPS avec Nginx, si Karl Brain écoute sur `127.0.0.1:8000`
+> et que Nginx reverse-proxie tout sur le même domaine, laissez `VITE_API_URL` vide
+> (les appels `/api/...` et `/ws/chat` seront relatifs au domaine courant).
+
 ---
 
 ## 🛠️ Outils disponibles

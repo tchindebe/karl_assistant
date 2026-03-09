@@ -10,12 +10,18 @@ from typing import Any, Dict, List, Optional
 
 import aiosqlite
 
-from core.database import DATABASE_URL
+from core.config import get_settings
 
 logger = logging.getLogger("karl.memory")
 
-# On extrait le path du fichier depuis l'URL SQLite (ex: "sqlite:///./karl.db" → "./karl.db")
-_DB_PATH = DATABASE_URL.replace("sqlite:///", "").replace("sqlite://", "")
+# On extrait le path du fichier depuis l'URL SQLite (ex: "sqlite+aiosqlite:///./karl.db" → "./karl.db")
+_DB_PATH = (
+    get_settings()
+    .database_url
+    .replace("sqlite+aiosqlite:///", "")
+    .replace("sqlite:///", "")
+    .replace("sqlite://", "")
+)
 
 
 async def _get_db() -> aiosqlite.Connection:

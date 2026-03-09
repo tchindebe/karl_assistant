@@ -115,18 +115,33 @@ async def deploy_application(
         return resp.json()
 
 
-async def list_deployments() -> Dict[str, Any]:
-    async with _client() as client:
-        resp = await client.get("/deployments")
-        resp.raise_for_status()
+def _safe_response(resp: httpx.Response) -> Dict[str, Any]:
+    """Retourne le JSON ou un dict d'erreur structuré sans lever d'exception."""
+    if resp.status_code == 200:
         return resp.json()
+    try:
+        detail = resp.json()
+    except Exception:
+        detail = resp.text
+    return {"success": False, "error": detail, "status_code": resp.status_code}
+
+
+async def list_deployments() -> Dict[str, Any]:
+    try:
+        async with _client() as client:
+            resp = await client.get("/deployments")
+        return _safe_response(resp)
+    except Exception as e:
+        return {"success": False, "error": str(e), "deployments": []}
 
 
 async def manage_container(name: str, action: str) -> Dict[str, Any]:
-    async with _client() as client:
-        resp = await client.post(f"/containers/{name}/{action}")
-        resp.raise_for_status()
-        return resp.json()
+    try:
+        async with _client() as client:
+            resp = await client.post(f"/containers/{name}/{action}")
+        return _safe_response(resp)
+    except Exception as e:
+        return {"success": False, "error": str(e)}
 
 
 async def get_logs(
@@ -137,18 +152,21 @@ async def get_logs(
     params = {"lines": lines}
     if since:
         params["since"] = since
-
-    async with _client() as client:
-        resp = await client.get(f"/logs/{service}", params=params)
-        resp.raise_for_status()
-        return resp.json()
+    try:
+        async with _client() as client:
+            resp = await client.get(f"/logs/{service}", params=params)
+        return _safe_response(resp)
+    except Exception as e:
+        return {"success": False, "error": str(e)}
 
 
 async def get_server_metrics() -> Dict[str, Any]:
-    async with _client() as client:
-        resp = await client.get("/metrics")
-        resp.raise_for_status()
-        return resp.json()
+    try:
+        async with _client() as client:
+            resp = await client.get("/metrics")
+        return _safe_response(resp)
+    except Exception as e:
+        return {"success": False, "error": str(e)}
 
 
 async def check_health(url: str, expected_status: int = 200) -> Dict[str, Any]:
