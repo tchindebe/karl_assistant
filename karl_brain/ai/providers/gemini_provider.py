@@ -166,14 +166,18 @@ class GeminiProvider(LLMProvider):
         def _call_gemini():
             chat = model.start_chat(history=gemini_messages[:-1] if gemini_messages else [])
             last_msg = gemini_messages[-1] if gemini_messages else {"parts": [{"text": ""}]}
-            # Extraire le texte du dernier message
-            last_text = ""
-            for part in last_msg.get("parts", []):
-                if "text" in part:
-                    last_text += part["text"]
+            # Construire le contenu à envoyer
+            # Si le dernier message contient des function_response (tool_results),
+            # on doit passer les parts directement (pas une string vide)
+            last_parts = last_msg.get("parts", [])
+            has_function_response = any("function_response" in p for p in last_parts)
+            if has_function_response:
+                content_to_send = last_parts
+            else:
+                content_to_send = "".join(p.get("text", "") for p in last_parts) or " "
 
             response = chat.send_message(
-                last_text,
+                content_to_send,
                 generation_config=GenerationConfig(
                     temperature=0.7,
                     max_output_tokens=8192,

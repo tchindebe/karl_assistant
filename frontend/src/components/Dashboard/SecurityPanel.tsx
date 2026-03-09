@@ -11,7 +11,7 @@ interface Props {
 }
 
 interface SecurityData {
-  success: boolean;
+  success?: boolean;
   error?: string;
   ssh_config?: { password_auth?: string; permit_root?: string };
   open_ports?: { port: number; service?: string }[];
@@ -78,7 +78,7 @@ export default function SecurityPanel({ token, onAction }: Props) {
 
   useEffect(() => { load(); }, []);
 
-  const checks = data && data.success
+  const checks = data && !data.error
     ? [
         {
           ok: data.ssh_config?.password_auth === "no",
@@ -145,14 +145,14 @@ export default function SecurityPanel({ token, onAction }: Props) {
         </div>
       )}
 
-      {!loading && data && !data.success && (
+      {!loading && data?.error && (
         <div style={{ padding: 16, background: "rgba(239,68,68,.1)", borderRadius: 10, color: "var(--red)" }}>
           <AlertTriangle size={16} style={{ marginRight: 8 }} />
           {data.error ?? "Impossible de contacter le VPS Agent"}
         </div>
       )}
 
-      {!loading && data?.success && (
+      {!loading && !data?.error && (
         <>
           {/* Score */}
           <div style={{

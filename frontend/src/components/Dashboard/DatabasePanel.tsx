@@ -17,7 +17,7 @@ interface Container {
 }
 
 interface ContainersData {
-  success: boolean;
+  success?: boolean;
   error?: string;
   containers?: Container[];
 }
@@ -102,7 +102,7 @@ export default function DatabasePanel({ token, onAction }: Props) {
         </div>
       )}
 
-      {!loading && data && !data.success && (
+      {!loading && data?.error && (
         <div style={{ padding: 16, background: "rgba(239,68,68,.1)", borderRadius: 10, color: "var(--red)" }}>
           <AlertTriangle size={16} style={{ marginRight: 8 }} />
           {data.error}
@@ -110,7 +110,7 @@ export default function DatabasePanel({ token, onAction }: Props) {
       )}
 
       {/* Detected DB containers */}
-      {!loading && data?.success && (
+      {!loading && !data?.error && (
         <>
           <div style={{ fontSize: 13, color: "var(--text-muted)" }}>
             {dbContainers.length > 0

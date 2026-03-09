@@ -11,17 +11,30 @@ interface Props {
 }
 
 interface SSLCert {
-  domains: string[];
+  name?: string;
+  domains: string | string[];
+  expiry?: string;
   expiry_date?: string;
+  days_left?: number;
   days_remaining?: number;
   status?: string;
 }
 
 interface SSLData {
-  success: boolean;
+  success?: boolean;
   error?: string;
   certificates?: SSLCert[];
   alerts?: SSLCert[];
+  total?: number;
+}
+
+function normalizeCert(c: SSLCert) {
+  return {
+    label: Array.isArray(c.domains) ? c.domains.join(", ") : (c.domains ?? c.name ?? ""),
+    expiry: c.expiry_date ?? c.expiry,
+    days: c.days_remaining ?? c.days_left,
+    status: c.status,
+  };
 }
 
 function StatusIcon({ days }: { days?: number }) {
@@ -64,8 +77,8 @@ export default function SSLPanel({ token, onAction }: Props) {
 
   useEffect(() => { load(); }, []);
 
-  const certs = data?.certificates ?? [];
-  const expiring = certs.filter(c => (c.days_remaining ?? 999) < 30);
+  const certs = (data?.certificates ?? []).map(normalizeCert);
+  const expiring = certs.filter(c => (c.days ?? 999) < 30);
 
   return (
     <div style={{ height: "100%", overflowY: "auto", padding: 24, display: "flex", flexDirection: "column", gap: 20 }}>
@@ -95,10 +108,10 @@ export default function SSLPanel({ token, onAction }: Props) {
         </div>
       )}
 
-      {!loading && data && !data.success && (
+      {!loading && data?.error && (
         <div style={{ padding: 16, background: "rgba(239,68,68,.1)", borderRadius: 10, color: "var(--red)" }}>
           <AlertTriangle size={16} style={{ marginRight: 8 }} />
-          {data.error ?? "Impossible de charger les certificats"}
+          {data.error}
         </div>
       )}
 
@@ -124,9 +137,9 @@ export default function SSLPanel({ token, onAction }: Props) {
       )}
 
       {/* Certs list */}
-      {!loading && data?.success && (
+      {!loading && (
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          {certs.length === 0 && (
+          {certs.length === 0 && !data?.error && (
             <div style={{ textAlign: "center", color: "var(--text-muted)", padding: 32 }}>
               Aucun certificat SSL installé.
             </div>
@@ -140,25 +153,23 @@ export default function SSLPanel({ token, onAction }: Props) {
                 borderRadius: 10, border: "1px solid var(--border)",
               }}
             >
-              <StatusIcon days={cert.days_remaining} />
+              <StatusIcon days={cert.days} />
               <div style={{ flex: 1 }}>
                 <div style={{ fontWeight: 500, fontSize: 14, color: "var(--text)" }}>
-                  {cert.domains?.join(", ")}
+                  {cert.label}
                 </div>
-                {cert.expiry_date && (
+                {cert.expiry && (
                   <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>
-                    Expire le {cert.expiry_date}
+                    Expire le {cert.expiry}
                   </div>
                 )}
               </div>
-              {cert.days_remaining !== undefined && (
+              {cert.days !== undefined && (
                 <span style={{
                   fontSize: 13, fontWeight: 600,
-                  color: statusColor(cert.days_remaining),
+                  color: statusColor(cert.days),
                 }}>
-                  {cert.days_remaining < 0
-                    ? "Expiré"
-                    : `${cert.days_remaining}j`}
+                  {cert.days < 0 ? "Expiré" : `${cert.days}j`}
                 </span>
               )}
             </div>

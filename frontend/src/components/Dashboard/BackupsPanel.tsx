@@ -20,7 +20,7 @@ interface Backup {
 }
 
 interface BackupsData {
-  success: boolean;
+  success?: boolean;
   error?: string;
   backups?: Backup[];
   total_size_mb?: number;
@@ -103,7 +103,7 @@ export default function BackupsPanel({ token, onAction }: Props) {
       </div>
 
       {/* Summary */}
-      {data?.success && data.total_size_mb != null && (
+      {!data?.error && data?.total_size_mb != null && (
         <div style={{
           padding: "12px 16px", background: "var(--surface)", borderRadius: 10,
           border: "1px solid var(--border)", display: "flex", gap: 24,
@@ -127,21 +127,21 @@ export default function BackupsPanel({ token, onAction }: Props) {
         </div>
       )}
 
-      {!loading && data && !data.success && (
+      {!loading && data?.error && (
         <div style={{ padding: 16, background: "rgba(239,68,68,.1)", borderRadius: 10, color: "var(--red)" }}>
           <AlertTriangle size={16} style={{ marginRight: 8 }} />
           {data.error ?? "Impossible de charger les sauvegardes"}
         </div>
       )}
 
-      {!loading && data?.success && backups.length === 0 && (
+      {!loading && !data?.error && backups.length === 0 && (
         <div style={{ textAlign: "center", color: "var(--text-muted)", padding: 32 }}>
           Aucune sauvegarde disponible.
         </div>
       )}
 
       {/* List */}
-      {!loading && data?.success && (
+      {!loading && !data?.error && (
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {backups.map((b, i) => (
             <div
