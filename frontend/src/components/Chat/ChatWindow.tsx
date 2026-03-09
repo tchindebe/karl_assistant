@@ -1,11 +1,13 @@
-import { useEffect, useRef } from "react";
-import { Trash2 } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Trash2, PanelLeftClose, PanelLeftOpen, Loader2 } from "lucide-react";
 import type { useChat } from "../../hooks/useChat";
 import MessageBubble from "./MessageBubble";
 import InputBar from "./InputBar";
+import ConversationList from "./ConversationList";
 
 interface Props {
   chat: ReturnType<typeof useChat>;
+  token: string;
 }
 
 const SUGGESTIONS = [
@@ -32,110 +34,179 @@ const SUGGESTIONS = [
   "Montre-moi les analytics de la semaine",
 ];
 
-export default function ChatWindow({ chat }: Props) {
-  const { messages, isLoading, error, sendMessage, clearChat } = chat;
+export default function ChatWindow({ chat, token }: Props) {
+  const {
+    messages,
+    isLoading,
+    isLoadingHistory,
+    error,
+    sendMessage,
+    clearChat,
+    conversationId,
+    loadConversation,
+    refreshTrigger,
+  } = chat;
+
   const bottomRef = useRef<HTMLDivElement>(null);
+  const [showHistory, setShowHistory] = useState(true);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  return (
-    <div className="flex flex-col h-full">
-      {/* Header */}
-      <div
-        className="flex items-center justify-between px-6 py-4 shrink-0"
-        style={{ borderBottom: "1px solid var(--border)" }}
-      >
-        <div>
-          <h2 className="font-semibold text-white">Karl</h2>
-          <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-            {isLoading ? "En train de réfléchir..." : "Prêt"}
-          </p>
-        </div>
-        {messages.length > 0 && (
-          <button
-            onClick={clearChat}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-all"
-            style={{ color: "var(--text-muted)", border: "1px solid var(--border)" }}
-            onMouseEnter={(e) => {
-              (e.currentTarget as HTMLElement).style.borderColor = "var(--red)";
-              (e.currentTarget as HTMLElement).style.color = "var(--red)";
-            }}
-            onMouseLeave={(e) => {
-              (e.currentTarget as HTMLElement).style.borderColor = "var(--border)";
-              (e.currentTarget as HTMLElement).style.color = "var(--text-muted)";
-            }}
-          >
-            <Trash2 size={14} />
-            Effacer
-          </button>
-        )}
-      </div>
+  const handleSelectConversation = (id: number) => {
+    loadConversation(id);
+  };
 
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-4 py-6 space-y-4">
-        {messages.length === 0 && (
-          <div className="flex flex-col items-center justify-center h-full gap-6 text-center">
+  const handleNewChat = () => {
+    clearChat();
+  };
+
+  return (
+    <div className="flex h-full overflow-hidden">
+      {/* ── Panneau historique ────────────────────────────────────────────── */}
+      {showHistory && (
+        <ConversationList
+          token={token}
+          activeId={conversationId}
+          onSelect={handleSelectConversation}
+          onNew={handleNewChat}
+          refreshTrigger={refreshTrigger}
+        />
+      )}
+
+      {/* ── Zone de chat ─────────────────────────────────────────────────── */}
+      <div className="flex flex-col flex-1 overflow-hidden">
+        {/* Header */}
+        <div
+          className="flex items-center justify-between px-4 py-4 shrink-0"
+          style={{ borderBottom: "1px solid var(--border)" }}
+        >
+          <div className="flex items-center gap-3">
+            {/* Toggle historique */}
+            <button
+              onClick={() => setShowHistory((v) => !v)}
+              title={showHistory ? "Masquer l'historique" : "Afficher l'historique"}
+              className="p-1.5 rounded-lg transition-all"
+              style={{ color: "var(--text-muted)" }}
+              onMouseEnter={(e) => {
+                (e.currentTarget as HTMLElement).style.background = "var(--surface2)";
+                (e.currentTarget as HTMLElement).style.color = "var(--text)";
+              }}
+              onMouseLeave={(e) => {
+                (e.currentTarget as HTMLElement).style.background = "transparent";
+                (e.currentTarget as HTMLElement).style.color = "var(--text-muted)";
+              }}
+            >
+              {showHistory ? <PanelLeftClose size={18} /> : <PanelLeftOpen size={18} />}
+            </button>
+
             <div>
-              <div
-                className="text-5xl mb-4 p-4 rounded-2xl inline-block"
-                style={{ background: "var(--surface2)" }}
-              >
-                🤖
-              </div>
-              <h3 className="text-xl font-semibold text-white mb-2">
-                Bonjour, je suis Karl
-              </h3>
-              <p style={{ color: "var(--text-muted)" }}>
-                Votre assistant IA pour gérer votre VPS de A à Z
+              <h2 className="font-semibold text-white leading-tight">Karl</h2>
+              <p className="text-xs leading-tight" style={{ color: "var(--text-muted)" }}>
+                {isLoadingHistory
+                  ? "Chargement de la conversation…"
+                  : isLoading
+                  ? "En train de réfléchir..."
+                  : "Prêt"}
               </p>
             </div>
+          </div>
 
-            {/* Suggestions */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full max-w-2xl">
-              {SUGGESTIONS.map((s) => (
-                <button
-                  key={s}
-                  onClick={() => sendMessage(s)}
-                  className="px-4 py-3 rounded-xl text-sm text-left transition-all"
-                  style={{
-                    background: "var(--surface)",
-                    border: "1px solid var(--border)",
-                    color: "var(--text)",
-                  }}
-                  onMouseEnter={(e) => {
-                    (e.currentTarget as HTMLElement).style.borderColor = "var(--accent)";
-                  }}
-                  onMouseLeave={(e) => {
-                    (e.currentTarget as HTMLElement).style.borderColor = "var(--border)";
-                  }}
-                >
-                  {s}
-                </button>
-              ))}
+          {messages.length > 0 && !isLoadingHistory && (
+            <button
+              onClick={clearChat}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-all"
+              style={{ color: "var(--text-muted)", border: "1px solid var(--border)" }}
+              onMouseEnter={(e) => {
+                (e.currentTarget as HTMLElement).style.borderColor = "var(--red)";
+                (e.currentTarget as HTMLElement).style.color = "var(--red)";
+              }}
+              onMouseLeave={(e) => {
+                (e.currentTarget as HTMLElement).style.borderColor = "var(--border)";
+                (e.currentTarget as HTMLElement).style.color = "var(--text-muted)";
+              }}
+            >
+              <Trash2 size={14} />
+              Effacer
+            </button>
+          )}
+        </div>
+
+        {/* Messages */}
+        <div className="flex-1 overflow-y-auto px-4 py-6 space-y-4">
+          {/* Loading history skeleton */}
+          {isLoadingHistory && (
+            <div className="flex flex-col items-center justify-center h-full gap-3">
+              <Loader2 size={28} className="animate-spin" style={{ color: "var(--accent)" }} />
+              <p className="text-sm" style={{ color: "var(--text-muted)" }}>
+                Chargement de la conversation…
+              </p>
             </div>
-          </div>
-        )}
+          )}
 
-        {messages.map((msg) => (
-          <MessageBubble key={msg.id} message={msg} />
-        ))}
+          {!isLoadingHistory && messages.length === 0 && (
+            <div className="flex flex-col items-center justify-center h-full gap-6 text-center">
+              <div>
+                <div
+                  className="text-5xl mb-4 p-4 rounded-2xl inline-block"
+                  style={{ background: "var(--surface2)" }}
+                >
+                  🤖
+                </div>
+                <h3 className="text-xl font-semibold text-white mb-2">
+                  Bonjour, je suis Karl
+                </h3>
+                <p style={{ color: "var(--text-muted)" }}>
+                  Votre assistant IA pour gérer votre VPS de A à Z
+                </p>
+              </div>
 
-        {error && (
-          <div
-            className="px-4 py-3 rounded-xl text-sm"
-            style={{ background: "#ef44441a", color: "var(--red)", border: "1px solid #ef444430" }}
-          >
-            ❌ {error}
-          </div>
-        )}
+              {/* Suggestions */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full max-w-2xl">
+                {SUGGESTIONS.map((s) => (
+                  <button
+                    key={s}
+                    onClick={() => sendMessage(s)}
+                    className="px-4 py-3 rounded-xl text-sm text-left transition-all"
+                    style={{
+                      background: "var(--surface)",
+                      border: "1px solid var(--border)",
+                      color: "var(--text)",
+                    }}
+                    onMouseEnter={(e) => {
+                      (e.currentTarget as HTMLElement).style.borderColor = "var(--accent)";
+                    }}
+                    onMouseLeave={(e) => {
+                      (e.currentTarget as HTMLElement).style.borderColor = "var(--border)";
+                    }}
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
-        <div ref={bottomRef} />
+          {!isLoadingHistory && messages.map((msg) => (
+            <MessageBubble key={msg.id} message={msg} />
+          ))}
+
+          {error && (
+            <div
+              className="px-4 py-3 rounded-xl text-sm"
+              style={{ background: "#ef44441a", color: "var(--red)", border: "1px solid #ef444430" }}
+            >
+              ❌ {error}
+            </div>
+          )}
+
+          <div ref={bottomRef} />
+        </div>
+
+        {/* Input */}
+        <InputBar onSend={sendMessage} disabled={isLoading || isLoadingHistory} />
       </div>
-
-      {/* Input */}
-      <InputBar onSend={sendMessage} disabled={isLoading} />
     </div>
   );
 }

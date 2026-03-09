@@ -29,9 +29,50 @@ export function useChat(token: string) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [conversationId, setConversationId] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Incrémenté après chaque échange pour déclencher le refresh de la liste
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
   const wsRef = useRef<WebSocket | null>(null);
   const pendingMsgIdRef = useRef<string | null>(null);
+
+  /** Charge une conversation existante depuis la DB et la restaure dans l'UI. */
+  const loadConversation = useCallback(
+    async (id: number) => {
+      // Fermer le WS en cours si besoin
+      wsRef.current?.close();
+      setIsLoadingHistory(true);
+      setError(null);
+
+      try {
+        const res = await fetch(`/api/conversations/${id}/messages`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+
+        // Convertir les messages DB → ChatMessage[]
+        const loaded: ChatMessage[] = (data.messages as Array<{
+          id: number;
+          role: string;
+          content: string;
+        }>).map((m) => ({
+          id: `db_${m.id}`,
+          role: m.role as "user" | "assistant",
+          content: m.content,
+          streaming: false,
+        }));
+
+        setMessages(loaded);
+        setConversationId(id);
+      } catch {
+        setError("Impossible de charger la conversation");
+      } finally {
+        setIsLoadingHistory(false);
+      }
+    },
+    [token]
+  );
 
   const sendMessage = useCallback(
     async (userInput: string) => {
@@ -135,6 +176,7 @@ export function useChat(token: string) {
               prev.map((m) => (m.id === aid ? { ...m, streaming: false } : m))
             );
             setIsLoading(false);
+            setRefreshTrigger((n) => n + 1);
             ws.close();
             break;
 
@@ -183,5 +225,15 @@ export function useChat(token: string) {
     };
   }, []);
 
-  return { messages, isLoading, error, sendMessage, clearChat, conversationId };
+  return {
+    messages,
+    isLoading,
+    isLoadingHistory,
+    error,
+    sendMessage,
+    clearChat,
+    conversationId,
+    loadConversation,
+    refreshTrigger,
+  };
 }

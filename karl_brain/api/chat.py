@@ -1,18 +1,23 @@
 """
 WebSocket /ws/chat — streaming de la conversation avec Karl.
 POST /api/chat — version HTTP simple (sans streaming).
+GET  /api/conversations — liste des conversations.
+GET  /api/conversations/{id}/messages — historique d'une conversation.
+DELETE /api/conversations/{id} — suppression.
+PATCH  /api/conversations/{id} — renommage.
 """
 import json
+from datetime import datetime
 from typing import List, Dict, Any
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, delete as sa_delete, update as sa_update, func
 
 from core.security import get_current_user
 from core.database import get_db, Conversation, Message
-from ai.claude_client import run_conversation, serialize_messages_for_db, deserialize_messages_from_db
+from ai.claude_client import run_conversation, serialize_messages_for_db
 
 router = APIRouter()
 
@@ -25,6 +30,10 @@ class ChatRequest(BaseModel):
 class ChatResponse(BaseModel):
     reply: str
     conversation_id: int
+
+
+class UpdateConversationRequest(BaseModel):
+    title: str
 
 
 async def _load_conversation_messages(
@@ -61,6 +70,12 @@ async def _save_message(
         tool_calls=tool_calls if isinstance(tool_calls, (list, dict)) else None,
     )
     db.add(msg)
+    # Mettre à jour le timestamp de la conversation (ordre dans la liste)
+    await db.execute(
+        sa_update(Conversation)
+        .where(Conversation.id == conversation_id)
+        .values(updated_at=datetime.utcnow())
+    )
     await db.flush()
 
 
@@ -98,7 +113,7 @@ async def websocket_chat(
             return
 
         try:
-            payload = decode_token(token)
+            decode_token(token)
         except Exception:
             await websocket.send_json({"type": "error", "message": "Invalid token"})
             await websocket.close(code=4001)
@@ -193,7 +208,7 @@ async def websocket_chat(
 @router.post("/api/chat", response_model=ChatResponse)
 async def http_chat(
     request: ChatRequest,
-    current_user: str = Depends(get_current_user),
+    _: str = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Version HTTP simple (sans streaming) pour les tests."""
@@ -217,3 +232,115 @@ async def http_chat(
     await db.commit()
 
     return ChatResponse(reply=final_text, conversation_id=conversation_id)
+
+
+# ── Endpoints historique ─────────────────────────────────────────────────────
+
+@router.get("/api/conversations")
+async def list_conversations(
+    limit: int = 50,
+    offset: int = 0,
+    _: str = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Liste les conversations récentes (ordre anti-chronologique)."""
+    total_result = await db.execute(select(func.count(Conversation.id)))
+    total = total_result.scalar_one()
+
+    result = await db.execute(
+        select(Conversation)
+        .order_by(Conversation.updated_at.desc())
+        .limit(limit)
+        .offset(offset)
+    )
+    convs = result.scalars().all()
+
+    return {
+        "conversations": [
+            {
+                "id": c.id,
+                "title": c.title,
+                "created_at": c.created_at.isoformat() if c.created_at else None,
+                "updated_at": c.updated_at.isoformat() if c.updated_at else None,
+            }
+            for c in convs
+        ],
+        "total": total,
+    }
+
+
+@router.get("/api/conversations/{conversation_id}/messages")
+async def get_conversation_messages(
+    conversation_id: int,
+    _: str = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Charge une conversation et ses messages pour reprise dans l'UI."""
+    conv_result = await db.execute(
+        select(Conversation).where(Conversation.id == conversation_id)
+    )
+    conv = conv_result.scalar_one_or_none()
+    if not conv:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+
+    msgs_result = await db.execute(
+        select(Message)
+        .where(Message.conversation_id == conversation_id)
+        .order_by(Message.id)
+    )
+    msgs = msgs_result.scalars().all()
+
+    return {
+        "conversation": {
+            "id": conv.id,
+            "title": conv.title,
+            "created_at": conv.created_at.isoformat() if conv.created_at else None,
+            "updated_at": conv.updated_at.isoformat() if conv.updated_at else None,
+        },
+        "messages": [
+            {
+                "id": m.id,
+                "role": m.role,
+                "content": m.content,
+                "created_at": m.created_at.isoformat() if m.created_at else None,
+            }
+            for m in msgs
+        ],
+    }
+
+
+@router.delete("/api/conversations/{conversation_id}")
+async def delete_conversation(
+    conversation_id: int,
+    _: str = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Supprime une conversation et tous ses messages."""
+    await db.execute(
+        sa_delete(Message).where(Message.conversation_id == conversation_id)
+    )
+    await db.execute(
+        sa_delete(Conversation).where(Conversation.id == conversation_id)
+    )
+    await db.commit()
+    return {"success": True}
+
+
+@router.patch("/api/conversations/{conversation_id}")
+async def update_conversation(
+    conversation_id: int,
+    request: UpdateConversationRequest,
+    _: str = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Renomme une conversation."""
+    result = await db.execute(
+        select(Conversation).where(Conversation.id == conversation_id)
+    )
+    conv = result.scalar_one_or_none()
+    if not conv:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+
+    conv.title = request.title[:255]
+    await db.commit()
+    return {"success": True, "title": conv.title}

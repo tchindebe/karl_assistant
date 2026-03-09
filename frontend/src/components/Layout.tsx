@@ -85,7 +85,7 @@ export default function Layout({ token, onLogout }: Props) {
 
       {/* ── Main content ────────────────────────────────────────────────────── */}
       <main className="flex-1 overflow-hidden flex flex-col">
-        {tab === "chat"      && <ChatWindow chat={chat} />}
+        {tab === "chat"      && <ChatWindow chat={chat} token={token} />}
         {tab === "overview"  && <Dashboard token={token} onAction={handleAction} />}
         {tab === "security"  && <SecurityPanel token={token} onAction={handleAction} />}
         {tab === "ssl"       && <SSLPanel token={token} onAction={handleAction} />}
