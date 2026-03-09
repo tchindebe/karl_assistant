@@ -228,6 +228,78 @@ Changement de provider : modifier `PROVIDER=` dans `.env` — aucune modificatio
 
 ---
 
+### Utiliser Ollama (llama local, gratuit)
+
+Ollama fait tourner des LLMs localement sur le VPS. Karl s'y connecte via l'API OpenAI-compatible d'Ollama.
+
+#### 1. Installer Ollama sur le VPS
+
+```bash
+curl -fsSL https://ollama.com/install.sh | sh
+
+# Vérifier que le service tourne
+systemctl status ollama
+```
+
+#### 2. Télécharger un modèle
+
+```bash
+# Modèles recommandés (choisir selon la RAM disponible) :
+ollama pull llama3.1        # 8B  — 5 GB RAM minimum
+ollama pull llama3.1:70b    # 70B — 40 GB RAM (serveurs puissants)
+ollama pull mistral         # 7B  — 5 GB RAM
+ollama pull qwen2.5         # 7B  — 5 GB RAM, très bon en code
+ollama pull deepseek-r1     # 7B  — 5 GB RAM, excellent raisonnement
+
+# Lister les modèles disponibles
+ollama list
+```
+
+#### 3. Installer le package Python requis
+
+```bash
+cd /opt/karl/karl_brain
+source venv/bin/activate
+pip install openai>=1.40.0
+```
+
+> Ollama utilise le package `openai` car il expose une API compatible OpenAI.
+
+#### 4. Configurer `.env`
+
+```env
+# karl_brain/.env
+PROVIDER=ollama
+OLLAMA_MODEL=llama3.1
+OLLAMA_BASE_URL=http://localhost:11434/v1
+```
+
+> `OLLAMA_BASE_URL` pointe vers Ollama en local — ne pas exposer le port 11434 publiquement.
+
+#### 5. Redémarrer Karl Brain
+
+```bash
+sudo systemctl restart karl-brain
+```
+
+#### Vérification
+
+```bash
+# Tester Ollama directement
+curl http://localhost:11434/api/generate -d '{"model":"llama3.1","prompt":"Bonjour"}'
+
+# Vérifier les logs Karl
+sudo journalctl -u karl-brain -n 20 --no-pager
+```
+
+#### Notes importantes
+
+- **Tool use (outils)** : Tous les modèles Ollama ne supportent pas le function calling. Modèles recommandés pour Karl : `llama3.1`, `qwen2.5`, `mistral-nemo`. Si les outils ne fonctionnent pas, Karl répondra mais ne pourra pas exécuter d'actions sur le VPS.
+- **Performance** : Sur un VPS standard (4 vCPU, 8 GB RAM), llama3.1:8B génère ~10-20 tokens/sec. Claude est plus rapide et plus capable pour les tâches DevOps complexes.
+- **Mises à jour** : `ollama pull llama3.1` pour mettre à jour un modèle.
+
+---
+
 ## 📋 Prérequis
 
 ### Démarrage rapide (Docker — recommandé)

@@ -110,6 +110,7 @@ class OpenAIProvider(LLMProvider):
         self._client = openai.AsyncOpenAI(
             api_key=api_key or "ollama",  # Ollama n'exige pas de vrai token
             base_url=base_url,
+            timeout=180.0,  # 3 min max (Ollama peut être lent au premier appel)
         )
         self._last_response_tool_calls: List[Any] = []
         self._last_response_content: Optional[str] = None
@@ -128,7 +129,7 @@ class OpenAIProvider(LLMProvider):
         tools: List[Dict[str, Any]],
         system: str,
         on_text: Optional[Callable[[str], Awaitable[None]]] = None,
-        on_thinking: Optional[Callable[[str], Awaitable[None]]] = None,
+        on_thinking: Optional[Callable[[str], Awaitable[None]]] = None,  # noqa: unused — OpenAI/Ollama n'a pas de thinking blocks
     ) -> ProviderResult:
         openai_messages = [{"role": "system", "content": system}]
         openai_messages += _normalize_messages_for_openai(messages)

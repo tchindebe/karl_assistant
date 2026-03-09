@@ -51,8 +51,11 @@ async def run_conversation(
     provider = _get_provider()
     final_text = ""
     current_messages = list(messages)
+    max_iterations = 10  # Évite les boucles infinies (surtout avec Ollama)
+    iteration = 0
 
-    while True:
+    while iteration < max_iterations:
+        iteration += 1
         # ── Appel LLM (streaming si supporté) ─────────────────────────────────
         result = await provider.run_turn(
             messages=current_messages,
@@ -105,6 +108,9 @@ async def run_conversation(
             executed_tool_calls,
             tool_results,
         )
+
+    if iteration >= max_iterations and not final_text:
+        final_text = "⚠️ Limite d'itérations atteinte — le modèle n'a pas convergé."
 
     return final_text, current_messages
 
