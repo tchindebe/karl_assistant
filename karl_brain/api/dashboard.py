@@ -30,7 +30,59 @@ async def ssl_status(_: str = Depends(get_current_user)):
 @router.get("/security/status")
 async def security_status(_: str = Depends(get_current_user)):
     """Résumé de l'audit de sécurité (SSH, ports, mises à jour, Docker)."""
-    return await _vps_get("/security/audit")
+    raw = await _vps_get("/security/audit")
+    if raw.get("error"):
+        return raw
+
+    results = raw.get("results", {})
+
+    # SSH config (results.ssh_config.config → flat keys)
+    ssh_config_raw = results.get("ssh_config", {}).get("config", {})
+    ssh_flat = {
+        "password_auth": ssh_config_raw.get("PasswordAuthentication", "yes"),
+        "permit_root": ssh_config_raw.get("PermitRootLogin", "yes"),
+    }
+
+    # Open ports list
+    open_ports = results.get("open_ports", {}).get("open_ports", [])
+
+    # System updates
+    updates_raw = results.get("system_updates", {})
+    system_updates = {
+        "available": updates_raw.get("total_upgradable"),
+        "security": updates_raw.get("security_updates"),
+    }
+
+    # Docker privileged containers (extract container name from issue description)
+    docker_issues = results.get("docker_images", {}).get("issues", [])
+    privileged = [
+        i["description"].split()[1]
+        for i in docker_issues
+        if i.get("type") == "docker_security" and len(i["description"].split()) > 1
+    ]
+
+    # Failed logins
+    failed_raw = results.get("failed_logins", {})
+    failed_logins = {"count": failed_raw.get("total_failures_24h", 0)}
+
+    # Fail2ban
+    fail2ban_raw = results.get("fail2ban", {})
+    fail2ban = {
+        "installed": fail2ban_raw.get("installed", False),
+        "active": fail2ban_raw.get("active", False),
+    }
+
+    return {
+        "success": True,
+        "score": raw.get("security_score"),
+        "grade": raw.get("grade"),
+        "ssh_config": ssh_flat,
+        "open_ports": open_ports,
+        "system_updates": system_updates,
+        "docker_security": {"privileged_containers": privileged},
+        "failed_logins": failed_logins,
+        "fail2ban": fail2ban,
+    }
 
 
 @router.get("/firewall")
@@ -44,24 +96,6 @@ async def backups_list(_: str = Depends(get_current_user)):
     """Liste des sauvegardes disponibles (volumes, BDD, configs)."""
     return await _vps_get("/backups")
 
-
-@router.get("/apps/available")
-async def apps_available(_: str = Depends(get_current_user)):
-    """Catalogue d'applications disponibles dans l'App Store."""
-    # Pas de route dédiée sur le VPS Agent — retourne un catalogue statique
-    return {
-        "success": True,
-        "apps": [
-            {"id": "wordpress",  "name": "WordPress",   "stack": "php",    "description": "CMS populaire"},
-            {"id": "nextjs",     "name": "Next.js",     "stack": "nodejs", "description": "Framework React"},
-            {"id": "django",     "name": "Django",      "stack": "python", "description": "Framework Python"},
-            {"id": "fastapi",    "name": "FastAPI",     "stack": "python", "description": "API Python rapide"},
-            {"id": "nginx",      "name": "Nginx Static","stack": "static", "description": "Site statique"},
-            {"id": "ghost",      "name": "Ghost",       "stack": "nodejs", "description": "Blog professionnel"},
-            {"id": "n8n",        "name": "n8n",         "stack": "nodejs", "description": "Automatisation workflows"},
-            {"id": "metabase",   "name": "Metabase",    "stack": "static", "description": "Analytics & BI"},
-        ],
-    }
 
 
 @router.get("/containers")

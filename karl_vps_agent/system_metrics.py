@@ -43,6 +43,7 @@ def get_metrics() -> Dict[str, Any]:
             pass
 
     return {
+        "success": True,
         "timestamp": datetime.utcnow().isoformat(),
         "cpu": {
             "percent": cpu,

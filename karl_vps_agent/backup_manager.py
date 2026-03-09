@@ -10,7 +10,7 @@ import shutil
 import json
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, Optional
 
 BACKUPS_DIR = Path(os.getenv("BACKUPS_DIR", "/opt/karl/backups"))
 APPS_BASE_DIR = Path(os.getenv("APPS_BASE_DIR", "/opt/karl/deployments"))
@@ -175,7 +175,7 @@ def backup_configs() -> Dict[str, Any]:
 
 # ── Liste et restauration ──────────────────────────────────────────────────────
 
-def list_backups(backup_type: str = "all") -> List[Dict[str, Any]]:
+def list_backups(backup_type: str = "all") -> Dict[str, Any]:
     """Liste toutes les sauvegardes disponibles."""
     _ensure_dirs()
     backups = []
@@ -202,7 +202,8 @@ def list_backups(backup_type: str = "all") -> List[Dict[str, Any]]:
                     "created_at": datetime.fromtimestamp(stat.st_mtime).isoformat(),
                 })
 
-    return backups
+    total_size_mb = round(sum(b["size_mb"] for b in backups), 2)
+    return {"success": True, "backups": backups, "total": len(backups), "total_size_mb": total_size_mb}
 
 
 def restore_volume_backup(backup_file: str, volume_name: str) -> Dict[str, Any]:

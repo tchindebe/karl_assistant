@@ -102,7 +102,7 @@ class DockerManager:
                 "ps_output": ps_result["stdout"],
             })
 
-        return {"deployments": deployments}
+        return {"success": True, "deployments": deployments}
 
     async def list_containers(self) -> Dict[str, Any]:
         result = await _run(
@@ -118,7 +118,7 @@ class DockerManager:
                     "status": parts[2],
                     "ports": parts[3] if len(parts) > 3 else "",
                 })
-        return {"containers": containers}
+        return {"success": True, "containers": containers}
 
     async def manage_container(self, name: str, action: str) -> Dict[str, Any]:
         name = _sanitize_name(name)

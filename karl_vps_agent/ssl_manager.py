@@ -129,6 +129,7 @@ class SSLManager:
             })
 
         return {
+            "success": True,
             "certificates": enriched,
             "alerts": alerts,
             "total": len(enriched),

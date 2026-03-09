@@ -31,12 +31,13 @@ class SecurityAuditor:
             self.check_ssh_config(),
             self.check_system_updates(),
             self.check_failed_logins(),
+            self.check_fail2ban(),
             return_exceptions=True,
         )
 
         check_names = [
             "open_ports", "docker_images", "file_permissions",
-            "ssh_config", "system_updates", "failed_logins",
+            "ssh_config", "system_updates", "failed_logins", "fail2ban",
         ]
 
         for name, result in zip(check_names, checks):
@@ -586,6 +587,47 @@ class SecurityAuditor:
 
         except Exception as e:
             return {"success": False, "error": str(e)}
+
+    async def check_fail2ban(self) -> Dict[str, Any]:
+        """Vérifie si fail2ban est installé et actif."""
+        issues = []
+        try:
+            proc = await asyncio.create_subprocess_exec(
+                "systemctl", "is-active", "fail2ban",
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+            stdout, _ = await proc.communicate()
+            active = stdout.decode().strip() == "active"
+
+            installed = True
+            if proc.returncode not in (0, 3):
+                # returncode 3 = inactive (installed but stopped)
+                installed = False
+
+            if not installed:
+                issues.append({
+                    "severity": "medium",
+                    "type": "fail2ban",
+                    "description": "fail2ban n'est pas installé",
+                    "recommendation": "Installer fail2ban pour protéger contre les attaques brute-force",
+                })
+            elif not active:
+                issues.append({
+                    "severity": "low",
+                    "type": "fail2ban",
+                    "description": "fail2ban est installé mais inactif",
+                    "recommendation": "Activer fail2ban: systemctl enable --now fail2ban",
+                })
+
+            return {
+                "success": True,
+                "installed": installed,
+                "active": active,
+                "issues": issues,
+            }
+        except Exception as e:
+            return {"success": False, "error": str(e), "installed": False, "active": False, "issues": []}
 
     async def install_fail2ban(self) -> Dict[str, Any]:
         """Installe et configure fail2ban pour la protection SSH."""

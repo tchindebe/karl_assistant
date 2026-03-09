@@ -13,6 +13,8 @@ interface Props {
 interface SecurityData {
   success?: boolean;
   error?: string;
+  score?: number;
+  grade?: string;
   ssh_config?: { password_auth?: string; permit_root?: string };
   open_ports?: { port: number; service?: string }[];
   system_updates?: { available?: number; security?: number };
@@ -113,9 +115,11 @@ export default function SecurityPanel({ token, onAction }: Props) {
       ]
     : [];
 
-  const score = checks.length > 0
+  const clientScore = checks.length > 0
     ? Math.round((checks.filter(c => c.ok).length / checks.length) * 100)
     : 0;
+  const score = data?.score ?? clientScore;
+  const grade = data?.grade;
 
   return (
     <div style={{ height: "100%", overflowY: "auto", padding: 24, display: "flex", flexDirection: "column", gap: 20 }}>
@@ -161,8 +165,17 @@ export default function SecurityPanel({ token, onAction }: Props) {
           }}>
             <ScoreBadge score={score} />
             <div>
-              <div style={{ fontSize: 16, fontWeight: 600, color: "var(--text)" }}>
-                Score de sécurité
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ fontSize: 16, fontWeight: 600, color: "var(--text)" }}>Score de sécurité</span>
+                {grade && (
+                  <span style={{
+                    fontSize: 13, fontWeight: 700, padding: "2px 8px", borderRadius: 6,
+                    background: grade === "A" ? "rgba(34,197,94,.15)" : grade === "B" ? "rgba(59,130,246,.15)" : "rgba(239,68,68,.15)",
+                    color: grade === "A" ? "var(--green)" : grade === "B" ? "var(--accent)" : "var(--red)",
+                  }}>
+                    {grade}
+                  </span>
+                )}
               </div>
               <div style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 4 }}>
                 {checks.filter(c => c.ok).length}/{checks.length} contrôles passés
