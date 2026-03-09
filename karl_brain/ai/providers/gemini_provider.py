@@ -15,6 +15,22 @@ except ImportError:
 from ai.providers.base import LLMProvider, ProviderResult, ToolCall
 
 
+def _strip_unsupported_schema_fields(schema: Any) -> Any:
+    """Supprime récursivement les champs non supportés par Gemini (additionalProperties, etc.)."""
+    if not isinstance(schema, dict):
+        return schema
+    unsupported = {"additionalProperties", "exclusiveMinimum", "exclusiveMaximum", "$schema"}
+    cleaned = {k: v for k, v in schema.items() if k not in unsupported}
+    if "properties" in cleaned and isinstance(cleaned["properties"], dict):
+        cleaned["properties"] = {
+            k: _strip_unsupported_schema_fields(v)
+            for k, v in cleaned["properties"].items()
+        }
+    if "items" in cleaned:
+        cleaned["items"] = _strip_unsupported_schema_fields(cleaned["items"])
+    return cleaned
+
+
 def _anthropic_tools_to_gemini(tools: List[Dict[str, Any]]) -> List[Any]:
     """Convertit le format Anthropic → format Gemini FunctionDeclaration."""
     if not _GEMINI_AVAILABLE:
@@ -22,7 +38,7 @@ def _anthropic_tools_to_gemini(tools: List[Dict[str, Any]]) -> List[Any]:
     declarations = []
     for t in tools:
         schema = t.get("input_schema", {"type": "object", "properties": {}})
-        # Gemini accepte les schemas JSON directement
+        schema = _strip_unsupported_schema_fields(schema)
         declarations.append(
             FunctionDeclaration(
                 name=t["name"],
