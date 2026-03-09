@@ -19,7 +19,7 @@ def _strip_unsupported_schema_fields(schema: Any) -> Any:
     """Supprime récursivement les champs non supportés par Gemini (additionalProperties, etc.)."""
     if not isinstance(schema, dict):
         return schema
-    unsupported = {"additionalProperties", "exclusiveMinimum", "exclusiveMaximum", "$schema"}
+    unsupported = {"additionalProperties", "exclusiveMinimum", "exclusiveMaximum", "$schema", "default"}
     cleaned = {k: v for k, v in schema.items() if k not in unsupported}
     if "properties" in cleaned and isinstance(cleaned["properties"], dict):
         cleaned["properties"] = {
