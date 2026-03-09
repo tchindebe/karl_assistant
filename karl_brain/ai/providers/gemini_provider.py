@@ -56,12 +56,20 @@ def _normalize_messages_for_gemini(messages: List[Dict[str, Any]]) -> List[Dict[
     """
     Convertit l'historique normalisé vers le format Gemini (Contents).
     Gemini utilise: role="user"|"model" et parts=[{"text":...}|{"function_call":...}|{"function_response":...}]
+
+    Les messages assistant qui contiennent "_gemini_raw_content" utilisent le Content brut
+    de l'API Gemini (préservant le thought_signature requis pour les tool calls avec thinking).
     """
     gemini_messages = []
     for msg in messages:
         role = msg["role"]
         content = msg["content"]
         gemini_role = "model" if role == "assistant" else "user"
+
+        # Utiliser le Content brut Gemini si disponible (préserve thought_signature)
+        if role == "assistant" and "_gemini_raw_content" in msg:
+            gemini_messages.append(msg["_gemini_raw_content"])
+            continue
 
         if isinstance(content, str):
             gemini_messages.append({"role": gemini_role, "parts": [{"text": content}]})
@@ -95,7 +103,7 @@ def _normalize_messages_for_gemini(messages: List[Dict[str, Any]]) -> List[Dict[
                 if parts:
                     gemini_messages.append({"role": "user", "parts": parts})
             else:
-                # Message assistant avec tool_calls et/ou texte
+                # Message assistant sans raw content (fallback reconstruction)
                 parts = []
                 for block in content:
                     b = block if isinstance(block, dict) else (
@@ -133,6 +141,7 @@ class GeminiProvider(LLMProvider):
         genai.configure(api_key=api_key)
         self._model_name = model
         self._last_tool_calls: List[Dict] = []
+        self._last_raw_content: Optional[Any] = None  # Content brut Gemini (préserve thought_signature)
 
     @property
     def name(self) -> str:
@@ -192,8 +201,11 @@ class GeminiProvider(LLMProvider):
         # Parser la réponse
         accumulated_text = ""
         tool_calls: List[ToolCall] = []
+        raw_content = None
 
         for candidate in response.candidates:
+            # Stocker le Content brut pour préserver thought_signature dans l'historique
+            raw_content = candidate.content
             for part in candidate.content.parts:
                 if hasattr(part, "text") and part.text:
                     accumulated_text += part.text
@@ -212,6 +224,7 @@ class GeminiProvider(LLMProvider):
                         input=args,
                     ))
 
+        self._last_raw_content = raw_content
         self._last_tool_calls = [
             {"id": tc.id, "name": tc.name, "args": tc.input}
             for tc in tool_calls
@@ -229,7 +242,10 @@ class GeminiProvider(LLMProvider):
         messages: List[Dict[str, Any]],
         result: ProviderResult,
     ) -> List[Dict[str, Any]]:
-        """Ajoute la réponse assistant au format interne normalisé."""
+        """
+        Ajoute la réponse assistant au format interne normalisé.
+        Attache le Content brut Gemini pour préserver thought_signature dans l'historique.
+        """
         assistant_content: List[Dict] = []
         if result.text:
             assistant_content.append({"type": "text", "text": result.text})
@@ -240,7 +256,13 @@ class GeminiProvider(LLMProvider):
                 "name": tc.name,
                 "input": tc.input,
             })
-        return messages + [{"role": "assistant", "content": assistant_content}]
+        msg: Dict[str, Any] = {"role": "assistant", "content": assistant_content}
+        # Attacher le Content brut pour que _normalize_messages_for_gemini
+        # puisse le réutiliser tel quel (avec thought_signature si thinking activé)
+        if self._last_raw_content is not None:
+            msg["_gemini_raw_content"] = self._last_raw_content
+            self._last_raw_content = None
+        return messages + [msg]
 
     def add_tool_results(
         self,
