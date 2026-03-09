@@ -110,7 +110,7 @@ class OpenAIProvider(LLMProvider):
         self._client = openai.AsyncOpenAI(
             api_key=api_key or "ollama",  # Ollama n'exige pas de vrai token
             base_url=base_url,
-            timeout=180.0,  # 3 min max (Ollama peut être lent au premier appel)
+            timeout=600.0,  # 10 min max (Ollama: chargement modèle peut être très lent)
         )
         self._last_response_tool_calls: List[Any] = []
         self._last_response_content: Optional[str] = None
